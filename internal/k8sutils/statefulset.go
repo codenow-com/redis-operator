@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"k8s.io/utils/pointer"
 )
 
 type StatefulSet interface {
@@ -288,6 +290,7 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					Annotations: generateStatefulSetsAnots(stsMeta, params.IgnoreAnnotations),
 				},
 				Spec: corev1.PodSpec{
+					AutomountServiceAccountToken: new(bool),
 					Containers: generateContainerDef(
 						stsMeta.GetName(),
 						containerParams,
@@ -306,7 +309,51 @@ func generateStatefulSetsDef(stsMeta metav1.ObjectMeta, params statefulSetParame
 					Affinity:                      params.Affinity,
 					TerminationGracePeriodSeconds: params.TerminationGracePeriodSeconds,
 					HostNetwork:                   params.HostNetwork,
-					Volumes:                       []corev1.Volume{generateConfigVolume(common.VolumeNameConfig)},
+					Volumes: append(
+						[]corev1.Volume{generateConfigVolume(common.VolumeNameConfig)},
+						corev1.Volume{
+							Name: "serviceaccount-token",
+							VolumeSource: corev1.VolumeSource{
+								Projected: &corev1.ProjectedVolumeSource{
+									DefaultMode: pointer.Int32Ptr(0o444),
+									Sources: []corev1.VolumeProjection{
+										{
+											ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
+												Path:              "token",
+												ExpirationSeconds: pointer.Int64Ptr(3607),
+											},
+										},
+										{
+											ConfigMap: &corev1.ConfigMapProjection{
+												LocalObjectReference: corev1.LocalObjectReference{
+													Name: "kube-root-ca.crt",
+												},
+												Items: []corev1.KeyToPath{
+													{
+														Key:  "ca.crt",
+														Path: "ca.crt",
+													},
+												},
+											},
+										},
+										{
+											DownwardAPI: &corev1.DownwardAPIProjection{
+												Items: []corev1.DownwardAPIVolumeFile{
+													{
+														Path: "namespace",
+														FieldRef: &corev1.ObjectFieldSelector{
+															APIVersion: "v1",
+															FieldPath:  "metadata.namespace",
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					),
 				},
 			},
 		},
@@ -442,7 +489,14 @@ func generateContainerDef(name string, containerParams containerParameters, clus
 			),
 			ReadinessProbe: getProbeInfo(containerParams.ReadinessProbe, sentinelCntr, enableTLS, enableAuth),
 			LivenessProbe:  getProbeInfo(containerParams.LivenessProbe, sentinelCntr, enableTLS, enableAuth),
-			VolumeMounts:   getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
+			VolumeMounts: append(
+				getVolumeMount(name, containerParams.PersistenceEnabled, clusterMode, nodeConfVolume, externalConfig, mountpath, containerParams.TLSConfig, containerParams.ACLConfig),
+				corev1.VolumeMount{
+					Name:      "serviceaccount-token",
+					MountPath: "/var/run/secrets/kubernetes.io/serviceaccount",
+					ReadOnly:  true,
+				},
+			),
 		},
 	}
 
