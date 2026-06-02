@@ -8,7 +8,7 @@ WORKSPACE_DIRECTORY='./workspace'
 
 REPOSITORY='git@github.com:codenow-com/redis-operator'
 BRANCH='custom/main'
-VERSION='0.22.2-cn.0.1'
+VERSION='0.25.0-cn.0.1'
 IMAGE_NAME='opstree/redis-operator'
 ARCHITECTURES=('amd64' 'arm64')
 REGISTRIES=('codenow-codenow-data-plane.jfrog.io' 'codenow-codenow-releases.jfrog.io')
