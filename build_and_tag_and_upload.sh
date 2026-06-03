@@ -8,10 +8,10 @@ WORKSPACE_DIRECTORY='./workspace'
 
 REPOSITORY='git@github.com:codenow-com/redis-operator'
 BRANCH='custom/main'
-VERSION='0.25.0-cn.0.1'
+VERSION='0.25.0-cn.0.2'
 IMAGE_NAME='opstree/redis-operator'
 ARCHITECTURES=('amd64' 'arm64')
-REGISTRIES=('codenow-codenow-data-plane.jfrog.io' 'codenow-codenow-releases.jfrog.io')
+REGISTRIES=('codenow-codenow-releases.jfrog.io')
 
 if [ -z "${WRITER_PASSWORD:-}" ]; then
     read -p "Enter password for \"${WRITER_USERNAME}\" : " WRITER_PASSWORD
